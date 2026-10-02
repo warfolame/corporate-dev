@@ -1,4 +1,4 @@
-package io.github.warfolame.moveorder;
+package io.github.warfolame.moveorder.domain;
 
 /**
  * Lifecycle of a move order: REQUESTED -> SCHEDULED -> IN_PROGRESS -> COMPLETED.

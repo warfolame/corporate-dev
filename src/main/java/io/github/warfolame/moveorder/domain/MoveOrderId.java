@@ -1,4 +1,4 @@
-package io.github.warfolame.moveorder;
+package io.github.warfolame.moveorder.domain;
 
 /**
  * Identifier of a move order, e.g. "MO-2026-0042".

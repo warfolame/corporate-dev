@@ -1,9 +1,9 @@
-package io.github.warfolame.moveorder;
+package io.github.warfolame.moveorder.domain;
 
-import static io.github.warfolame.moveorder.MoveOrderStatus.COMPLETED;
-import static io.github.warfolame.moveorder.MoveOrderStatus.IN_PROGRESS;
-import static io.github.warfolame.moveorder.MoveOrderStatus.REQUESTED;
-import static io.github.warfolame.moveorder.MoveOrderStatus.SCHEDULED;
+import static io.github.warfolame.moveorder.domain.MoveOrderStatus.COMPLETED;
+import static io.github.warfolame.moveorder.domain.MoveOrderStatus.IN_PROGRESS;
+import static io.github.warfolame.moveorder.domain.MoveOrderStatus.REQUESTED;
+import static io.github.warfolame.moveorder.domain.MoveOrderStatus.SCHEDULED;
 
 import java.util.Map;
 import java.util.Objects;

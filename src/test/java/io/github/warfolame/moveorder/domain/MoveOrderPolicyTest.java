@@ -1,4 +1,4 @@
-package io.github.warfolame.moveorder;
+package io.github.warfolame.moveorder.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

@@ -1,0 +1,3 @@
+# corporate-dev
+
+Coursework for "Corporate Development". One branch per lab: `lab-01`, `lab-02`, ...

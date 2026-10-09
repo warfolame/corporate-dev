@@ -14,11 +14,11 @@
 
     <groupId>io.github.warfolame</groupId>
     <artifactId>move-order-tracker</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Move Order Tracker</name>
-    <description>Statuses of move orders for a moving company (Corporate Development, lab-02)</description>
+    <description>Statuses of move orders for a moving company (Corporate Development, lab-03)</description>
 
     <properties>
         <!-- the Spring Boot parent turns this into maven.compiler.release=21 -->
@@ -31,7 +31,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
-        <!-- JUnit Jupiter (incl. params), Spring test support -->
+        <!-- JdbcTemplate, the HikariCP pool and @Transactional; no ORM -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <!-- PostgreSQL JDBC driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- JUnit Jupiter (incl. params), Mockito, Spring test support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

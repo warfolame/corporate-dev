@@ -1,0 +1,10 @@
+# Only PostgreSQL for local development and tests. The application itself is not in Docker.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: css
+      POSTGRES_USER: css
+      POSTGRES_PASSWORD: css
+    ports:
+      - "5432:5432"

@@ -56,6 +56,16 @@ The table allows `REQUESTED → SCHEDULED`, but the stop-factor still blocks it 
 `MoveOrderRuleChain` checks both in order; `MoveOrderRulesConfig` builds the chain as a `@Bean`,
 and `MoveOrderService` (`@Service`) gets it injected as a `MoveOrderRule`.
 
+## Outbound port
+
+The deposit is paid to an outside payment provider. The domain owns the port
+`DepositPayments` (`isDepositPaid(number)`); `DepositConfirmation` asks it and marks the
+order paid. If the provider fails (timeout, 503), the caller gets our `PaymentsUnavailable`
+with the order number, not the provider's stack trace.
+
+The HTTP adapter for the provider comes later in `client`. Until then the port is used only
+in `DepositConfirmationTest`, where it is a Mockito mock: no test calls a real endpoint.
+
 ## Package diagram
 
 ```

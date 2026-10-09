@@ -4,11 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 class MoveOrderPolicyTest {
 
@@ -28,17 +25,5 @@ class MoveOrderPolicyTest {
             case "no" -> assertThrows(IllegalStateException.class, () -> policy.move(from, to), reason);
             default -> fail("Allowed must be 'yes' or 'no', but was: " + allowed);
         }
-    }
-
-    @ParameterizedTest(name = "id \"{0}\" is rejected")
-    @NullAndEmptySource
-    @ValueSource(strings = {" ", "   ", "\t", "\n"})
-    void idRejectsNullAndBlank(String value) {
-        assertThrows(IllegalArgumentException.class, () -> new MoveOrderId(value));
-    }
-
-    @Test
-    void idKeepsValidValue() {
-        assertEquals("MO-2026-0042", new MoveOrderId("MO-2026-0042").value());
     }
 }

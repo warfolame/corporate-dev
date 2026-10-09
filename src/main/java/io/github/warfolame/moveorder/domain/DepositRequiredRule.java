@@ -11,7 +11,7 @@ public final class DepositRequiredRule implements MoveOrderRule {
     public void check(MoveOrder order, MoveOrderStatus to) {
         if (to == MoveOrderStatus.SCHEDULED && !order.depositPaid()) {
             throw new IllegalStateException(
-                    "Move order " + order.id().value() + " cannot be scheduled: deposit is not paid");
+                    "Move order " + order.number().value() + " cannot be scheduled: deposit is not paid");
         }
     }
 }

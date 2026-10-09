@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
 
 class MoveOrderRuleTest {
 
-    private final MoveOrder unpaid = MoveOrder.requested(new MoveOrderId("MO-2026-0042"));
+    private final MoveOrder unpaid = MoveOrder.requested(
+            MoveOrderId.newId(), new MoveOrderNumber("MO-2026-0042"), "2-room flat: Abay 10 -> Dostyk 5");
     private final MoveOrder paid = unpaid.payDeposit();
 
     private final MoveOrderRule transitionRule = new TransitionRule(new MoveOrderPolicy());

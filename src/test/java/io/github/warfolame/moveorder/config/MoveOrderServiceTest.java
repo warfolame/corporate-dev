@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.warfolame.moveorder.domain.MoveOrder;
 import io.github.warfolame.moveorder.domain.MoveOrderId;
+import io.github.warfolame.moveorder.domain.MoveOrderNumber;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,7 +19,8 @@ class MoveOrderServiceTest {
     @Autowired
     private MoveOrderService service;
 
-    private final MoveOrder unpaid = MoveOrder.requested(new MoveOrderId("MO-2026-0042"));
+    private final MoveOrder unpaid = MoveOrder.requested(
+            MoveOrderId.newId(), new MoveOrderNumber("MO-2026-0042"), "2-room flat: Abay 10 -> Dostyk 5");
 
     @Test
     void movesOrderWhenAllRulesPass() {

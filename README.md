@@ -5,8 +5,20 @@ We build a move order tracker for a moving company. People track move orders.
 ## Core item
 
 A **move order** is one customer's move from address A to address B.
-Every order (`MoveOrder`) has an id (`MoveOrderId`), a status (`MoveOrderStatus`)
+Every order (`MoveOrder`) has two identifiers, a title, a status (`MoveOrderStatus`)
 and a flag that says whether the customer has paid the deposit:
+
+| Field    | Type              | Example                            | Who creates it        |
+|----------|-------------------|------------------------------------|-----------------------|
+| `id`     | `MoveOrderId`     | a UUID                             | `MoveOrderId.newId()` |
+| `number` | `MoveOrderNumber` | `MO-2026-0042`                     | the sales process     |
+| `title`  | `String`          | `2-room flat: Abay 10 -> Dostyk 5` | the sales manager     |
+
+`id` is the surrogate key: it never changes and nobody types it. `number` is the business key:
+it is in the customer's email, and one number belongs to at most one order.
+Null or blank values are rejected in the constructors.
+
+Statuses:
 
 `REQUESTED` → `SCHEDULED` → `IN_PROGRESS` → `COMPLETED`
 

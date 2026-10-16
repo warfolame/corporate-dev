@@ -4,9 +4,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Starts the move order tracker.
+ * Starts the move order tracker. Spring scans {@code config} and {@code persistence};
+ * {@code domain} has no annotations and its objects are created in {@link MoveOrderRulesConfig}.
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {
+        "io.github.warfolame.moveorder.config",
+        "io.github.warfolame.moveorder.persistence"})
 public class Application {
 
     public static void main(String[] args) {

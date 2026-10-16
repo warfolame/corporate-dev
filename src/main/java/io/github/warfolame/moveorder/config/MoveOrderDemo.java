@@ -6,6 +6,7 @@ import static io.github.warfolame.moveorder.domain.MoveOrderStatus.SCHEDULED;
 
 import io.github.warfolame.moveorder.domain.MoveOrder;
 import io.github.warfolame.moveorder.domain.MoveOrderId;
+import io.github.warfolame.moveorder.domain.MoveOrderNumber;
 import io.github.warfolame.moveorder.domain.MoveOrderStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,8 @@ public class MoveOrderDemo implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        MoveOrder order = MoveOrder.requested(new MoveOrderId("MO-2026-0042"));
+        MoveOrder order = MoveOrder.requested(
+                MoveOrderId.newId(), new MoveOrderNumber("MO-2026-0042"), "2-room flat: Abay 10 -> Dostyk 5");
         log.info("New order: {}", order);
 
         tryMove(order, SCHEDULED);

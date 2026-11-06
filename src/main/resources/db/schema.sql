@@ -1,9 +1,10 @@
 -- One move order. Written by hand; nothing generates this table.
+-- IF NOT EXISTS: the dev profile runs this file on every start (spring.sql.init).
 --   id            surrogate key: the UUID from MoveOrderId.newId()
 --   business_key  the order number people see (MO-2026-0042); one order per number
 --   status        one of the four MoveOrderStatus values from the README
 --   deposit_paid  a fact about money (DepositRequiredRule), not a second status
-CREATE TABLE move_order (
+CREATE TABLE IF NOT EXISTS move_order (
   id            uuid PRIMARY KEY,
   business_key  text NOT NULL UNIQUE,
   status        text NOT NULL,

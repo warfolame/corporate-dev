@@ -19,7 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Integration test against the real PostgreSQL from application.yml.
+ * Integration test against the real PostgreSQL from application-dev.yaml.
  * The test opens no transaction of its own: every count is read after the
  * service's transaction has committed or rolled back, the way production sees it.
  */

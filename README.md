@@ -63,8 +63,9 @@ The deposit is paid to an outside payment provider. The domain owns the port
 order paid. If the provider fails (timeout, 503), the caller gets our `PaymentsUnavailable`
 with the order number, not the provider's stack trace.
 
-The HTTP adapter for the provider comes later in `client`. Until then the port is used only
-in `DepositConfirmationTest`, where it is a Mockito mock: no test calls a real endpoint.
+The adapter `PaymentsClient` (`client`) already knows the provider's base URL and timeout from
+yaml (Lab 4), but makes no call until Lab 6. In `DepositConfirmationTest` the port is a Mockito
+mock: no test calls a real endpoint.
 
 ## Storage
 
@@ -147,7 +148,7 @@ ERROR:  new row for relation "move_order" violates check constraint "move_order_
 |---------------|-------------------------------------------------------------------------------------------------|
 | `domain`      | `MoveOrderId`, `MoveOrderNumber`, `MoveOrderStatus`, `MoveOrderPolicy`, rules, `DuplicateMoveOrder`; no JDBC, no Spring |
 | `persistence` | `MoveOrderJdbc` (`@Repository`): `insert`, `count`, `findById`, `findByNumber` with `JdbcTemplate` and `?`; status ↔ text mapping; duplicate key → `DuplicateMoveOrder` |
-| `config`      | `MoveOrderService` (`@Service`, `@Transactional` on `register` and `insertTwice`); DataSource from `application.yml` |
+| `config`      | `MoveOrderService` (`@Service`, `@Transactional` on `register` and `insertTwice`); DataSource from `application-dev.yaml` |
 
 The repository maps `MoveOrderStatus` to the text column and back with an explicit `switch`.
 Text that is not one of the four statuses throws `IllegalStateException`; it never becomes a new status.
@@ -257,6 +258,47 @@ turning 201 into 200 or a status token into a number would be `/api/v2`, with v1
 | `MoveOrderControllerTest` | `@WebMvcTest` slice, service mocked, no database: 201 + `Location`, the five bodies (four 400s, title of 120 is 201), 404, 409, UUID in path, not JSON, 415, correlation id echoed and minted, 500 without internals |
 | `MoveOrderApiTest`        | the whole app on PostgreSQL: `Location` can be read back; a second `POST` of the same key is 409 and the count stays **1**; a 400 stores nothing |
 
+## Configuration, profiles, health
+
+Nothing that changes between a laptop and a server is written in Java. A grep of `src/main/java`
+for `jdbc:postgresql` or `http://` finds nothing.
+
+| File                     | Holds                                                                                      |
+|--------------------------|--------------------------------------------------------------------------------------------|
+| `application.yaml`       | what every run shares: `spring.profiles.default: dev`, the error-leak settings, actuator exposure, `info`. No URL, no password |
+| `application-dev.yaml`   | the laptop: PostgreSQL `localhost:5432/css`, user and password `css` (classroom default); runs `db/schema.sql` on start; payment provider `http://localhost:9090`, timeout `2s` |
+| `application-prod.yaml`  | a server: `CSS_DB_URL`, `CSS_DB_USER`, `CSS_DB_PASSWORD`, `CSS_DOWNSTREAM_URL` from the environment. No default secret |
+
+A plain `mvn spring-boot:run` uses `dev`. A server runs with `SPRING_PROFILES_ACTIVE=prod` and the
+four variables. The committed files never activate `prod`.
+
+There is no JPA and no migration tool in this project (Lab 3 is JDBC by design), so the shared yaml
+has no `ddl-auto`, `open-in-view` or migration keys. The table is still our hand-written `schema.sql`;
+`CREATE TABLE IF NOT EXISTS` lets the dev profile run it on every start.
+
+### The payment provider's address
+
+`app.downstream.base-url` and `app.downstream.timeout` are bound to the record `DownstreamProperties`
+by `@ConfigurationProperties(prefix = "app.downstream")`. The timeout is a `Duration` (`2s`), not a
+number of milliseconds. `PaymentsConfig` passes both into `PaymentsClient` (`client`), the adapter for
+the Lab 3 port `DepositPayments`. It does not call the network: the real call and the timeout are Lab 6.
+
+### Actuator
+
+| Call                       | Result                                                 |
+|----------------------------|--------------------------------------------------------|
+| `GET /actuator/health`     | **200** `{"status":"UP"}`; no details, no datasource URL |
+| `GET /actuator/info`       | **200** `{"app":{"name":"Move Order Tracker",...}}`     |
+| `GET /actuator/env`, `/beans`, `/heapdump`, `POST /actuator/shutdown` | **404**, not exposed |
+
+### Tests
+
+| Test              | What it proves                                                                          |
+|-------------------|-----------------------------------------------------------------------------------------|
+| `DevProfileTest`  | with `dev`, the base URL is `http://localhost:9090` and the timeout 2 seconds, `PaymentsClient` received them, the database is localhost `css`; other yaml binds other values. No socket to port 9090 |
+| `ProdProfileTest` | with `prod`, the datasource and the base URL come from `CSS_*` variables                 |
+| `ActuatorTest`    | health is 200 and UP without details, info carries the product name, `env`, `beans`, `heapdump`, `configprops`, `metrics`, `shutdown` are 404 |
+
 ## Package diagram
 
 ```
@@ -265,8 +307,9 @@ turning 201 into 200 or a status token into a number would be `/api/v2`, with v1
     POST/GET /api/v1/...       MoveOrderService  @Service  ->  (JdbcTemplate, ?)
   CreateMoveOrderRequest         @Transactional                     |
   MoveOrderResponse            MoveOrderRulesConfig  @Bean          |
-  ErrorBody, ApiErrorAdvice           |                             |
-        |                      injects MoveOrderRule                |
+  ErrorBody, ApiErrorAdvice    DownstreamProperties  (yaml)        |
+        |                      PaymentsConfig  @Bean  --> client: PaymentsClient
+        |                      injects MoveOrderRule          implements DepositPayments
         v                             v                             v
                                        domain
           MoveOrderId  MoveOrderNumber  MoveOrderStatus  MoveOrderPolicy  MoveOrder
@@ -278,12 +321,12 @@ turning 201 into 200 or a status token into a number would be `/api/v2`, with v1
 
 Arrows point **inward**: the outer packages use `domain`, and `domain` uses nothing else.
 `domain` has no `org.springframework`, `ResponseEntity`, `jakarta.validation` or `java.sql` import.
-`dto` and `client` are empty for now.
+`dto` is empty for now.
 
 ## Run
 
-The build needs PostgreSQL on `localhost:5432`, database `css`, user `css`, password `css`
-(a classroom laptop default from `application.yml`, not a production secret). Either:
+The app and the build need PostgreSQL on `localhost:5432`, database `css`, user `css`, password `css`
+(the classroom laptop default in `application-dev.yaml`, not a production secret). Either:
 
 ```bash
 docker compose up -d   # compose.yaml runs only PostgreSQL 16, not the application
@@ -300,14 +343,20 @@ Then:
 
 ```bash
 mvn -q verify          # compile + all tests; the storage tests drop and re-create move_order
-mvn spring-boot:run    # starts the app; it walks one order through the rules and logs each step
-
-psql -h localhost -U css -d css -f src/main/resources/db/schema.sql   # the table, by hand
+mvn spring-boot:run    # dev profile: creates the table if missing, serves on port 8080
 ```
 
-Boundary checks (both print nothing):
+| URL                                         | What                         |
+|---------------------------------------------|------------------------------|
+| http://localhost:8080/swagger-ui.html       | the API, clickable           |
+| http://localhost:8080/v3/api-docs           | the OpenAPI spec             |
+| http://localhost:8080/actuator/health       | `{"status":"UP"}`            |
+| http://localhost:8080/api/v1/move-orders    | `POST` here (see REST API)   |
+
+Boundary checks (each prints nothing):
 
 ```bash
 grep -rE "java\.sql|org\.springframework|jakarta\.validation|ResponseEntity" src/main/java/io/github/warfolame/moveorder/domain
+grep -rE "jdbc:postgresql|http://" src/main/java
 grep -rniE "jakarta\.persistence|data-jpa" --include=*.java --include=pom.xml .
 ```

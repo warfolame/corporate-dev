@@ -3,6 +3,7 @@ package io.github.warfolame.moveorder.config;
 import io.github.warfolame.moveorder.domain.DuplicateMoveOrder;
 import io.github.warfolame.moveorder.domain.MoveOrder;
 import io.github.warfolame.moveorder.domain.MoveOrderId;
+import io.github.warfolame.moveorder.domain.MoveOrderNotFound;
 import io.github.warfolame.moveorder.domain.MoveOrderNumber;
 import io.github.warfolame.moveorder.domain.MoveOrderRule;
 import io.github.warfolame.moveorder.domain.MoveOrderStatus;
@@ -32,6 +33,15 @@ public class MoveOrderService {
     public MoveOrder move(MoveOrder order, MoveOrderStatus to) {
         rules.check(order, to);
         return order.withStatus(to);
+    }
+
+    /**
+     * Reads one stored order. Changes nothing.
+     *
+     * @throws MoveOrderNotFound if no order has this id
+     */
+    public MoveOrder get(MoveOrderId id) {
+        return orders.findById(id).orElseThrow(() -> new MoveOrderNotFound(id));
     }
 
     /**

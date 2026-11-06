@@ -65,11 +65,11 @@ class MoveOrderStorageTest {
     void registeredOrderReadsBackUnchanged() {
         MoveOrder registered = service.register(MoveOrderId.newId(), number, "2-room flat: Abay 10 -> Dostyk 5");
 
-        assertEquals(registered, orders.find(number).orElseThrow());
+        assertEquals(registered, orders.findByNumber(number).orElseThrow());
     }
 
     @Test
     void unknownNumberIsNotFound() {
-        assertTrue(orders.find(new MoveOrderNumber("MO-2026-9999")).isEmpty());
+        assertTrue(orders.findByNumber(new MoveOrderNumber("MO-2026-9999")).isEmpty());
     }
 }

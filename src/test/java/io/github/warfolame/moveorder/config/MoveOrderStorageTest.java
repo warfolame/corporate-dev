@@ -19,7 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Integration test against the real PostgreSQL from application.yml.
+ * Integration test against the real PostgreSQL from application-dev.yaml.
  * The test opens no transaction of its own: every count is read after the
  * service's transaction has committed or rolled back, the way production sees it.
  */
@@ -65,11 +65,11 @@ class MoveOrderStorageTest {
     void registeredOrderReadsBackUnchanged() {
         MoveOrder registered = service.register(MoveOrderId.newId(), number, "2-room flat: Abay 10 -> Dostyk 5");
 
-        assertEquals(registered, orders.find(number).orElseThrow());
+        assertEquals(registered, orders.findByNumber(number).orElseThrow());
     }
 
     @Test
     void unknownNumberIsNotFound() {
-        assertTrue(orders.find(new MoveOrderNumber("MO-2026-9999")).isEmpty());
+        assertTrue(orders.findByNumber(new MoveOrderNumber("MO-2026-9999")).isEmpty());
     }
 }

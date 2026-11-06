@@ -1,7 +1,0 @@
-# Classroom local PostgreSQL (a laptop default, not a production secret).
-# Start it with `docker compose up -d` or use a local install; see README.
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/css
-    username: css
-    password: css

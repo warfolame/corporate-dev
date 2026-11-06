@@ -1,0 +1,33 @@
+# What every run shares. No URL and no password here: those come from a profile.
+spring:
+  application:
+    name: move-order-tracker
+  profiles:
+    # a local boot with no flag uses the laptop setup; production sets SPRING_PROFILES_ACTIVE=prod
+    default: dev
+  # Boot's own error page: never show a stack trace, exception text or binding dump.
+  web:
+    error:
+      include-stacktrace: never
+      include-message: never
+      include-binding-errors: never
+      include-exception: false
+
+# Actuator: only health and info over HTTP. Health says UP or DOWN, nothing about the database.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Move Order Tracker
+    description: Move orders for a moving company (CSS-3008)

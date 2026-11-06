@@ -63,8 +63,9 @@ The deposit is paid to an outside payment provider. The domain owns the port
 order paid. If the provider fails (timeout, 503), the caller gets our `PaymentsUnavailable`
 with the order number, not the provider's stack trace.
 
-The HTTP adapter for the provider comes later in `client`. Until then the port is used only
-in `DepositConfirmationTest`, where it is a Mockito mock: no test calls a real endpoint.
+The adapter `PaymentsClient` (`client`) already knows the provider's base URL and timeout from
+yaml (Lab 4), but makes no call until Lab 6. In `DepositConfirmationTest` the port is a Mockito
+mock: no test calls a real endpoint.
 
 ## Storage
 
@@ -146,38 +147,186 @@ ERROR:  new row for relation "move_order" violates check constraint "move_order_
 | Package       | What                                                                                            |
 |---------------|-------------------------------------------------------------------------------------------------|
 | `domain`      | `MoveOrderId`, `MoveOrderNumber`, `MoveOrderStatus`, `MoveOrderPolicy`, rules, `DuplicateMoveOrder`; no JDBC, no Spring |
-| `persistence` | `MoveOrderJdbc` (`@Repository`): `insert`, `count`, `find` with `JdbcTemplate` and `?`; status ↔ text mapping; duplicate key → `DuplicateMoveOrder` |
-| `config`      | `MoveOrderService` (`@Service`, `@Transactional` on `register` and `insertTwice`); DataSource from `application.yml` |
+| `persistence` | `MoveOrderJdbc` (`@Repository`): `insert`, `count`, `findById`, `findByNumber` with `JdbcTemplate` and `?`; status ↔ text mapping; duplicate key → `DuplicateMoveOrder` |
+| `config`      | `MoveOrderService` (`@Service`, `@Transactional` on `register` and `insertTwice`); DataSource from `application-dev.yaml` |
 
 The repository maps `MoveOrderStatus` to the text column and back with an explicit `switch`.
 Text that is not one of the four statuses throws `IllegalStateException`; it never becomes a new status.
 
+## REST API
+
+Another team never opens our code. They get a URL, a JSON body and a status code.
+
+| Call                            | Meaning                                                      |
+|---------------------------------|--------------------------------------------------------------|
+| `POST /api/v1/move-orders`      | register one new move order; it starts in `REQUESTED`         |
+| `GET /api/v1/move-orders/{id}`  | read it; `{id}` is the UUID from Lab 3, not `MO-2026-0042`    |
+
+The version is in the path (`/api/v1`). No `PUT`, `PATCH`, `DELETE` or list in this lab.
+
+**Request** (`Content-Type: application/json`): both fields required, title at most 120 characters.
+
+```json
+{"businessKey": "MO-2026-0042", "title": "2-room flat: Abay 10 -> Dostyk 5"}
+```
+
+**Response** (`201 Created`, `Location: .../api/v1/move-orders/{id}`, and the same body on `GET`):
+
+```json
+{"id": "346d2437-0f31-4a46-b821-a6c40d74881e", "businessKey": "MO-2026-0042",
+ "status": "REQUESTED", "title": "2-room flat: Abay 10 -> Dostyk 5"}
+```
+
+`status` is the same token the `CHECK` constraint stores. The response is its own record
+(`MoveOrderResponse`): the domain `MoveOrder` and the table never reach Jackson.
+
+### Outcomes
+
+| Situation                                                    | Status | `code`               |
+|--------------------------------------------------------------|--------|----------------------|
+| order registered                                             | 201    | (body is the order)  |
+| `title` or `businessKey` blank, or `title` longer than 120   | 400    | `VALIDATION`         |
+| path id is not a UUID, or the body is not JSON               | 400    | `VALIDATION`         |
+| UUID parses and no order has it                              | 404    | `NOT_FOUND`          |
+| business key already stored (the first order stays)          | 409    | `DUPLICATE`          |
+| `Content-Type` is not `application/json`                     | 415    | `UNSUPPORTED`        |
+| a path we do not serve / a method we do not allow            | 404 / 405 | `NOT_FOUND` / `METHOD_NOT_ALLOWED` |
+| a bug nobody mapped                                          | 500    | `INTERNAL`           |
+
+Every failure has the same body, and only these three fields: no stack trace, no exception class.
+
+```json
+{"code": "DUPLICATE", "message": "duplicate move order: MO-2026-0042", "correlationId": "demo-1"}
+```
+
+`correlationId` repeats the caller's `X-Correlation-Id` header; if the header is missing or blank,
+a new UUID is minted. A 500 logs the exception with that id and says only `unexpected error`.
+
+Who decides what:
+
+- `MoveOrderController` (`handler`) picks 201 and builds `Location`. It calls the Lab 3
+  `MoveOrderService.register` and the new `get`; it has no SQL and no business rules.
+- `CreateMoveOrderRequest` carries `@NotBlank` / `@Size(max = 120)`. `@Valid` runs them before the
+  controller method, so on a 400 the service is never called.
+- `ApiErrorAdvice` (`@RestControllerAdvice`) is the one place that maps exceptions to 400 / 404 / 409 /
+  415 / 500. The domain exceptions `MoveOrderNotFound` and `DuplicateMoveOrder` know nothing about HTTP.
+
+### Real calls (`mvn spring-boot:run`)
+
+```text
+$ curl -i -X POST localhost:8080/api/v1/move-orders -H 'Content-Type: application/json' \
+       -d '{"businessKey":"MO-2026-0042","title":"2-room flat: Abay 10 -> Dostyk 5"}'
+HTTP/1.1 201
+Location: http://localhost:8080/api/v1/move-orders/346d2437-0f31-4a46-b821-a6c40d74881e
+{"id":"346d2437-...","businessKey":"MO-2026-0042","status":"REQUESTED","title":"2-room flat: Abay 10 -> Dostyk 5"}
+
+$ curl -i -X POST ... -H 'X-Correlation-Id: demo-1' -d '{"businessKey":"MO-2026-0042","title":"Again"}'
+HTTP/1.1 409
+{"code":"DUPLICATE","message":"duplicate move order: MO-2026-0042","correlationId":"demo-1"}
+
+$ curl -i -X POST ... -d '{"businessKey":"","title":"  "}'
+HTTP/1.1 400
+{"code":"VALIDATION","message":"businessKey must not be blank; title must not be blank","correlationId":"5a84762b-..."}
+
+$ curl -i localhost:8080/api/v1/move-orders/MO-2026-0042
+HTTP/1.1 400
+{"code":"VALIDATION","message":"id must be a UUID","correlationId":"ab277773-..."}
+
+$ curl -i localhost:8080/api/v1/move-orders/11111111-1111-1111-1111-111111111111
+HTTP/1.1 404
+{"code":"NOT_FOUND","message":"move order not found: 11111111-1111-1111-1111-111111111111","correlationId":"1c8121ab-..."}
+
+$ psql -h localhost -U css -d css -c "SELECT count(*) FROM move_order WHERE business_key = 'MO-2026-0042'"
+ count
+-------
+     1
+```
+
+### Contract
+
+`/swagger-ui.html` shows the operations; `/v3/api-docs` is the OpenAPI spec (springdoc). It lists
+`201`, `400`, `409` (and `415`) on create, `200`, `404` (and `400`) on get, both request fields as
+required, and the response fields `id`, `businessKey`, `status`, `title`.
+
+Compatibility: adding an optional field or clearer message text stays on `/api/v1`. Renaming `title`,
+turning 201 into 200 or a status token into a number would be `/api/v2`, with v1 left alone.
+
+### Tests
+
+| Test                      | What it proves                                                                                |
+|---------------------------|-----------------------------------------------------------------------------------------------|
+| `MoveOrderControllerTest` | `@WebMvcTest` slice, service mocked, no database: 201 + `Location`, the five bodies (four 400s, title of 120 is 201), 404, 409, UUID in path, not JSON, 415, correlation id echoed and minted, 500 without internals |
+| `MoveOrderApiTest`        | the whole app on PostgreSQL: `Location` can be read back; a second `POST` of the same key is 409 and the count stays **1**; a 400 stores nothing |
+
+## Configuration, profiles, health
+
+Nothing that changes between a laptop and a server is written in Java. A grep of `src/main/java`
+for `jdbc:postgresql` or `http://` finds nothing.
+
+| File                     | Holds                                                                                      |
+|--------------------------|--------------------------------------------------------------------------------------------|
+| `application.yaml`       | what every run shares: `spring.profiles.default: dev`, the error-leak settings, actuator exposure, `info`. No URL, no password |
+| `application-dev.yaml`   | the laptop: PostgreSQL `localhost:5432/css`, user and password `css` (classroom default); runs `db/schema.sql` on start; payment provider `http://localhost:9090`, timeout `2s` |
+| `application-prod.yaml`  | a server: `CSS_DB_URL`, `CSS_DB_USER`, `CSS_DB_PASSWORD`, `CSS_DOWNSTREAM_URL` from the environment. No default secret |
+
+A plain `mvn spring-boot:run` uses `dev`. A server runs with `SPRING_PROFILES_ACTIVE=prod` and the
+four variables. The committed files never activate `prod`.
+
+There is no JPA and no migration tool in this project (Lab 3 is JDBC by design), so the shared yaml
+has no `ddl-auto`, `open-in-view` or migration keys. The table is still our hand-written `schema.sql`;
+`CREATE TABLE IF NOT EXISTS` lets the dev profile run it on every start.
+
+### The payment provider's address
+
+`app.downstream.base-url` and `app.downstream.timeout` are bound to the record `DownstreamProperties`
+by `@ConfigurationProperties(prefix = "app.downstream")`. The timeout is a `Duration` (`2s`), not a
+number of milliseconds. `PaymentsConfig` passes both into `PaymentsClient` (`client`), the adapter for
+the Lab 3 port `DepositPayments`. It does not call the network: the real call and the timeout are Lab 6.
+
+### Actuator
+
+| Call                       | Result                                                 |
+|----------------------------|--------------------------------------------------------|
+| `GET /actuator/health`     | **200** `{"status":"UP"}`; no details, no datasource URL |
+| `GET /actuator/info`       | **200** `{"app":{"name":"Move Order Tracker",...}}`     |
+| `GET /actuator/env`, `/beans`, `/heapdump`, `POST /actuator/shutdown` | **404**, not exposed |
+
+### Tests
+
+| Test              | What it proves                                                                          |
+|-------------------|-----------------------------------------------------------------------------------------|
+| `DevProfileTest`  | with `dev`, the base URL is `http://localhost:9090` and the timeout 2 seconds, `PaymentsClient` received them, the database is localhost `css`; other yaml binds other values. No socket to port 9090 |
+| `ProdProfileTest` | with `prod`, the datasource and the base URL come from `CSS_*` variables                 |
+| `ActuatorTest`    | health is 200 and UP without details, info carries the product name, `env`, `beans`, `heapdump`, `configprops`, `metrics`, `shutdown` are 404 |
+
 ## Package diagram
 
 ```
-  dto            client          handler        config                          persistence
-  (JSON later)   (HTTP later)    (HTTP week 9)  Application                     MoveOrderJdbc  @Repository
-                                                MoveOrderService  @Service  ->  (JdbcTemplate, ?)
-                                                  @Transactional                     |
-                                                MoveOrderRulesConfig  @Bean          |
-       \              \              /               |                             |
-        \              \            /        injects MoveOrderRule                 |
-         v              v          v                 v                             v
+  handler                      config                          persistence
+  MoveOrderController   ---->  Application                     MoveOrderJdbc  @Repository
+    POST/GET /api/v1/...       MoveOrderService  @Service  ->  (JdbcTemplate, ?)
+  CreateMoveOrderRequest         @Transactional                     |
+  MoveOrderResponse            MoveOrderRulesConfig  @Bean          |
+  ErrorBody, ApiErrorAdvice    DownstreamProperties  (yaml)        |
+        |                      PaymentsConfig  @Bean  --> client: PaymentsClient
+        |                      injects MoveOrderRule          implements DepositPayments
+        v                             v                             v
                                        domain
           MoveOrderId  MoveOrderNumber  MoveOrderStatus  MoveOrderPolicy  MoveOrder
           MoveOrderRule + TransitionRule, DepositRequiredRule (MoveOrderRuleChain)
-          DepositPayments (port), DepositConfirmation, PaymentsUnavailable, DuplicateMoveOrder
-                                  (no Spring, no JDBC)
+          DepositPayments (port), DepositConfirmation, PaymentsUnavailable
+          DuplicateMoveOrder, MoveOrderNotFound
+                       (no Spring, no JDBC, no HTTP, no jakarta.validation)
 ```
 
 Arrows point **inward**: the outer packages use `domain`, and `domain` uses nothing else.
-`domain` has no `org.springframework` and no `java.sql` import. `dto`, `client` and `handler`
-are empty for now.
+`domain` has no `org.springframework`, `ResponseEntity`, `jakarta.validation` or `java.sql` import.
+`dto` is empty for now.
 
 ## Run
 
-The build needs PostgreSQL on `localhost:5432`, database `css`, user `css`, password `css`
-(a classroom laptop default from `application.yml`, not a production secret). Either:
+The app and the build need PostgreSQL on `localhost:5432`, database `css`, user `css`, password `css`
+(the classroom laptop default in `application-dev.yaml`, not a production secret). Either:
 
 ```bash
 docker compose up -d   # compose.yaml runs only PostgreSQL 16, not the application
@@ -194,14 +343,20 @@ Then:
 
 ```bash
 mvn -q verify          # compile + all tests; the storage tests drop and re-create move_order
-mvn spring-boot:run    # starts the app; it walks one order through the rules and logs each step
-
-psql -h localhost -U css -d css -f src/main/resources/db/schema.sql   # the table, by hand
+mvn spring-boot:run    # dev profile: creates the table if missing, serves on port 8080
 ```
 
-Boundary checks (both print nothing):
+| URL                                         | What                         |
+|---------------------------------------------|------------------------------|
+| http://localhost:8080/swagger-ui.html       | the API, clickable           |
+| http://localhost:8080/v3/api-docs           | the OpenAPI spec             |
+| http://localhost:8080/actuator/health       | `{"status":"UP"}`            |
+| http://localhost:8080/api/v1/move-orders    | `POST` here (see REST API)   |
+
+Boundary checks (each prints nothing):
 
 ```bash
-grep -rE "java\.sql|org\.springframework" src/main/java/io/github/warfolame/moveorder/domain
+grep -rE "java\.sql|org\.springframework|jakarta\.validation|ResponseEntity" src/main/java/io/github/warfolame/moveorder/domain
+grep -rE "jdbc:postgresql|http://" src/main/java
 grep -rniE "jakarta\.persistence|data-jpa" --include=*.java --include=pom.xml .
 ```

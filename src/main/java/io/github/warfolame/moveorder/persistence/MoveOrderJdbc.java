@@ -30,7 +30,13 @@ public class MoveOrderJdbc {
             SELECT count(*) FROM move_order WHERE business_key = ?
             """;
 
-    private static final String FIND = """
+    private static final String FIND_BY_ID = """
+            SELECT id, business_key, status, title, deposit_paid
+            FROM move_order
+            WHERE id = ?
+            """;
+
+    private static final String FIND_BY_NUMBER = """
             SELECT id, business_key, status, title, deposit_paid
             FROM move_order
             WHERE business_key = ?
@@ -66,8 +72,12 @@ public class MoveOrderJdbc {
         return n == null ? 0 : n;
     }
 
-    public Optional<MoveOrder> find(MoveOrderNumber number) {
-        return jdbc.query(FIND, MoveOrderJdbc::toOrder, number.value()).stream().findFirst();
+    public Optional<MoveOrder> findById(MoveOrderId id) {
+        return jdbc.query(FIND_BY_ID, MoveOrderJdbc::toOrder, id.value()).stream().findFirst();
+    }
+
+    public Optional<MoveOrder> findByNumber(MoveOrderNumber number) {
+        return jdbc.query(FIND_BY_NUMBER, MoveOrderJdbc::toOrder, number.value()).stream().findFirst();
     }
 
     private static MoveOrder toOrder(ResultSet rs, int rowNum) throws SQLException {

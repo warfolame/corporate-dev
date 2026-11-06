@@ -1,0 +1,18 @@
+# The laptop. PostgreSQL from compose.yaml with the classroom login css/css
+# (a local default, not a production secret). The payment provider is expected on port 9090;
+# nothing calls it until Lab 6.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/css
+    username: css
+    password: css
+  sql:
+    init:
+      # runs our hand-written db/schema.sql on start (CREATE TABLE IF NOT EXISTS)
+      mode: always
+      schema-locations: classpath:db/schema.sql
+
+app:
+  downstream:
+    base-url: http://localhost:9090
+    timeout: 2s

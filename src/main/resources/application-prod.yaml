@@ -1,0 +1,13 @@
+# Production. Everything that varies comes from the environment; there is no default secret.
+#   SPRING_PROFILES_ACTIVE=prod
+#   CSS_DB_URL, CSS_DB_USER, CSS_DB_PASSWORD, CSS_DOWNSTREAM_URL
+spring:
+  datasource:
+    url: ${CSS_DB_URL}
+    username: ${CSS_DB_USER}
+    password: ${CSS_DB_PASSWORD}
+
+app:
+  downstream:
+    base-url: ${CSS_DOWNSTREAM_URL}
+    timeout: 2s

@@ -25,14 +25,14 @@ public final class MoveOrderPolicy {
      * Moves an order from one status to another.
      *
      * @return the new status {@code to} if the transition is allowed
-     * @throws IllegalStateException if the transition is forbidden
+     * @throws TransitionNotAllowed (an {@link IllegalStateException}) if the transition is forbidden
      */
     public MoveOrderStatus move(MoveOrderStatus from, MoveOrderStatus to) {
         Objects.requireNonNull(from, "from must not be null");
         Objects.requireNonNull(to, "to must not be null");
 
         if (!ALLOWED.getOrDefault(from, Set.of()).contains(to)) {
-            throw new IllegalStateException("Move order cannot go from " + from + " to " + to);
+            throw new TransitionNotAllowed("Move order cannot go from " + from + " to " + to);
         }
         return to;
     }

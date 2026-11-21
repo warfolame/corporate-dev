@@ -36,6 +36,18 @@ public class MoveOrderJdbc {
             WHERE id = ?
             """;
 
+    /** Locks the row until the transaction ends: two managers cannot complete the same order at once. */
+    private static final String FIND_BY_ID_FOR_UPDATE = """
+            SELECT id, business_key, status, title, deposit_paid
+            FROM move_order
+            WHERE id = ?
+            FOR UPDATE
+            """;
+
+    private static final String UPDATE_STATUS = """
+            UPDATE move_order SET status = ? WHERE id = ?
+            """;
+
     private static final String FIND_BY_NUMBER = """
             SELECT id, business_key, status, title, deposit_paid
             FROM move_order
@@ -74,6 +86,23 @@ public class MoveOrderJdbc {
 
     public Optional<MoveOrder> findById(MoveOrderId id) {
         return jdbc.query(FIND_BY_ID, MoveOrderJdbc::toOrder, id.value()).stream().findFirst();
+    }
+
+    /** Like {@link #findById}, and holds a row lock. Call it inside the caller's transaction. */
+    public Optional<MoveOrder> findByIdForUpdate(MoveOrderId id) {
+        return jdbc.query(FIND_BY_ID_FOR_UPDATE, MoveOrderJdbc::toOrder, id.value()).stream().findFirst();
+    }
+
+    /**
+     * Writes the order's status. Only the status: the number, title and deposit do not change here.
+     *
+     * @throws IllegalStateException if no row has this id (the caller read it first, so this is a bug)
+     */
+    public void updateStatus(MoveOrder order) {
+        int rows = jdbc.update(UPDATE_STATUS, toColumn(order.status()), order.id().value());
+        if (rows != 1) {
+            throw new IllegalStateException("expected one move order row for " + order.id().value() + ", updated " + rows);
+        }
     }
 
     public Optional<MoveOrder> findByNumber(MoveOrderNumber number) {

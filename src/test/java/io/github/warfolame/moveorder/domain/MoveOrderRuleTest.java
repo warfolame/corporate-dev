@@ -58,4 +58,12 @@ class MoveOrderRuleTest {
     void chainBlocksForbiddenTransitionEvenWithDeposit() {
         assertThrows(IllegalStateException.class, () -> chain.check(paid, COMPLETED));
     }
+
+    /** Both refusals carry one name the HTTP edge maps to 409; they are still IllegalStateException. */
+    @Test
+    void refusalsAreTransitionNotAllowed() {
+        assertThrows(TransitionNotAllowed.class, () -> transitionRule.check(paid, COMPLETED));
+        assertThrows(TransitionNotAllowed.class, () -> depositRule.check(unpaid, SCHEDULED));
+        assertThrows(TransitionNotAllowed.class, () -> chain.check(paid.withStatus(COMPLETED), COMPLETED));
+    }
 }

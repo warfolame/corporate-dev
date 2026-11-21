@@ -10,7 +10,7 @@ public final class DepositRequiredRule implements MoveOrderRule {
     @Override
     public void check(MoveOrder order, MoveOrderStatus to) {
         if (to == MoveOrderStatus.SCHEDULED && !order.depositPaid()) {
-            throw new IllegalStateException(
+            throw new TransitionNotAllowed(
                     "Move order " + order.number().value() + " cannot be scheduled: deposit is not paid");
         }
     }

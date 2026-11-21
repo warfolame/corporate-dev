@@ -14,11 +14,11 @@
 
     <groupId>io.github.warfolame</groupId>
     <artifactId>move-order-tracker</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>0.5.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Move Order Tracker</name>
-    <description>Statuses of move orders for a moving company (Corporate Development, lab-04)</description>
+    <description>Statuses of move orders for a moving company (Corporate Development, lab-05)</description>
 
     <properties>
         <!-- the Spring Boot parent turns this into maven.compiler.release=21 -->
@@ -58,6 +58,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- the filter chain: 401 and 403 happen here, before any controller -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- creates and checks our own JWTs (Nimbus): JwtEncoder at login, JwtDecoder on every call.
+             Boot 4 name of spring-boot-starter-oauth2-resource-server. This API issues its own token: no "log in with Google" starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+        </dependency>
         <!-- /v3/api-docs and /swagger-ui.html; the 3.x line matches Spring Boot 4 -->
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -68,6 +79,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- jwt() and @WithMockUser for MockMvc; puts the filter chain into @WebMvcTest -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-resource-server-test</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- @WebMvcTest and MockMvc -->

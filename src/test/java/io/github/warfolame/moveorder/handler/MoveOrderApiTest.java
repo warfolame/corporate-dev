@@ -1,6 +1,7 @@
 package io.github.warfolame.moveorder.handler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,11 +20,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
  * The whole app over HTTP against the real PostgreSQL: what Lab 3 proved for
  * {@code register}, now proved for {@code POST}. No transaction of its own.
+ * Every call carries a dispatcher's token; {@code AuthFlowTest} does the same with a real login.
  */
 @SpringBootTest(classes = Application.class)
 @AutoConfigureMockMvc
@@ -42,6 +47,11 @@ class MoveOrderApiTest {
 
     private final MoveOrderNumber number = new MoveOrderNumber("MO-2026-0042");
 
+    private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+        return mvc.perform(request.with(jwt().jwt(token -> token.subject("aliya"))
+                .authorities(new SimpleGrantedAuthority("ROLE_DISPATCHER"))));
+    }
+
     @BeforeEach
     void cleanDatabase() throws IOException {
         jdbc.execute("DROP TABLE IF EXISTS move_order");
@@ -50,12 +60,12 @@ class MoveOrderApiTest {
 
     @Test
     void createdOrderCanBeReadAtItsLocation() throws Exception {
-        String location = mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
+        String location = perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
                         .content(body("MO-2026-0042", "2-room flat: Abay 10 -> Dostyk 5")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getHeader("Location");
 
-        mvc.perform(get(location))
+        perform(get(location))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.businessKey").value("MO-2026-0042"))
                 .andExpect(jsonPath("$.status").value("REQUESTED"))
@@ -64,10 +74,10 @@ class MoveOrderApiTest {
 
     @Test
     void secondPostOfTheSameKeyIs409AndKeepsOneRow() throws Exception {
-        mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body("MO-2026-0042", "Office")))
+        perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body("MO-2026-0042", "Office")))
                 .andExpect(status().isCreated());
 
-        mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body("MO-2026-0042", "Again")))
+        perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body("MO-2026-0042", "Again")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE"));
 
@@ -77,7 +87,7 @@ class MoveOrderApiTest {
 
     @Test
     void blankTitleIs400AndStoresNothing() throws Exception {
-        mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body("MO-2026-0042", " ")))
+        perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(body("MO-2026-0042", " ")))
                 .andExpect(status().isBadRequest());
 
         assertEquals(0, orders.count(number));

@@ -1,6 +1,8 @@
 # Production. Everything that varies comes from the environment; there is no default secret.
 #   SPRING_PROFILES_ACTIVE=prod
-#   CSS_DB_URL, CSS_DB_USER, CSS_DB_PASSWORD, CSS_DOWNSTREAM_URL
+#   CSS_DB_URL, CSS_DB_USER, CSS_DB_PASSWORD, CSS_DOWNSTREAM_URL, CSS_JWT_SECRET
+# A missing CSS_JWT_SECRET, or one shorter than 32 characters, stops the application at startup.
+# No dev users here: the user table is a later lab.
 spring:
   datasource:
     url: ${CSS_DB_URL}
@@ -11,3 +13,5 @@ app:
   downstream:
     base-url: ${CSS_DOWNSTREAM_URL}
     timeout: 2s
+  jwt:
+    secret: ${CSS_JWT_SECRET}

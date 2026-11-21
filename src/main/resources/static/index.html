@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Move Order Tracker · Sign in</title>
+  <meta name="description" content="Move Order Tracker: sign in as a dispatcher or a manager, read and register move orders, complete a move.">
+  <!-- inline icon: the browser does not ask the API for /favicon.ico -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c2410c'/%3E%3Cpath d='M7 11h11v10H7zM18 14h4l3 3v4h-7z' fill='white'/%3E%3Ccircle cx='11' cy='22' r='2.2' fill='%23c2410c' stroke='white' stroke-width='1.4'/%3E%3Ccircle cx='21.5' cy='22' r='2.2' fill='%23c2410c' stroke='white' stroke-width='1.4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar__inner">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7"/>
+        <path d="M7 11h11v10H7zM18 14h4l3 3v4h-7z"/>
+        <circle cx="11" cy="22" r="2.2"/>
+        <circle cx="21.5" cy="22" r="2.2"/>
+      </svg>
+      <div>
+        <p class="brand__name">Move Order Tracker</p>
+        <p class="brand__tag">Move orders of a moving company · CSS-3008 Lab 5</p>
+      </div>
+    </div>
+    <div class="session-pill" id="session-pill" hidden>
+      <span class="dot" aria-hidden="true"></span>
+      <span id="pill-text"></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro" aria-labelledby="intro-title">
+    <h1 id="intro-title">Who is calling, and may they?</h1>
+    <p class="lead">
+      Sign in once with a password, get a 15-minute token, and every call to the move order API
+      carries it as <code>Authorization: Bearer</code>. No token is <strong>401</strong>.
+      A token whose role may not do the action is <strong>403</strong>.
+    </p>
+    <div class="roles">
+      <article class="role">
+        <p class="role__name"><span class="chip chip--role">DISPATCHER</span> junior role</p>
+        <p>Registers move orders and reads them. Completing one is <strong>403</strong>: the order does not change.</p>
+      </article>
+      <article class="role">
+        <p class="role__name"><span class="chip chip--role chip--senior">MANAGER</span> senior role</p>
+        <p>Everything a dispatcher does, and <strong>completes</strong> a move: <code>IN_PROGRESS → COMPLETED</code>. The customer is billed, the crew is paid.</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <!-- signed out: the login form -->
+      <section class="card" id="login-card" aria-labelledby="login-title">
+        <h2 id="login-title">Sign in</h2>
+        <!-- method=post: even without JavaScript the password never lands in a URL -->
+        <form id="login-form" method="post" action="/" autocomplete="on" novalidate>
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" spellcheck="false" required>
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="submit" class="btn btn--primary" id="login-button">Sign in</button>
+          <p class="hint"><code>POST /api/v1/auth/login</code> · <code>Content-Type: application/json</code></p>
+        </form>
+        <div class="outcome" id="login-outcome" aria-live="polite" hidden></div>
+      </section>
+
+      <!-- signed in: who you are, from GET /api/me -->
+      <section class="card" id="session-card" aria-labelledby="session-title" hidden>
+        <h2 id="session-title">Signed in</h2>
+        <dl class="facts">
+          <div><dt>Username</dt><dd id="me-username"></dd></div>
+          <div><dt>Role</dt><dd id="me-role"></dd></div>
+          <div><dt>Token lifetime</dt><dd id="me-expires"></dd></div>
+          <div><dt>Time left</dt><dd id="me-countdown"></dd></div>
+        </dl>
+        <p class="hint">
+          Name and role come from <code>GET /api/me</code>, which reads the checked token.
+          The token itself is kept in a JavaScript variable only: not in the URL, not in
+          <code>localStorage</code>, not on this page.
+        </p>
+        <button type="button" class="btn" id="logout-button">Log out</button>
+      </section>
+
+      <section class="card card--dev" aria-labelledby="dev-title">
+        <h2 id="dev-title">Dev users <span class="chip chip--warn">dev profile only</span></h2>
+        <p class="hint">Classroom users from <code>application-dev.yaml</code>. Stored as BCrypt hashes. Production has none.</p>
+        <table class="users">
+          <thead><tr><th scope="col">Username</th><th scope="col">Password</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Fill in</span></th></tr></thead>
+          <tbody>
+          <tr>
+            <td><code>aliya</code></td><td><code>dispatcher-dev</code></td><td>DISPATCHER</td>
+            <td><button type="button" class="btn btn--small" data-fill="aliya" data-password="dispatcher-dev">Use</button></td>
+          </tr>
+          <tr>
+            <td><code>nurlan</code></td><td><code>manager-dev</code></td><td>MANAGER</td>
+            <td><button type="button" class="btn btn--small" data-fill="nurlan" data-password="manager-dev">Use</button></td>
+          </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <div class="col">
+      <!-- the allowed call -->
+      <section class="card" aria-labelledby="orders-title">
+        <h2 id="orders-title">Move order <span class="chip">DISPATCHER · MANAGER</span></h2>
+
+        <form id="read-form" class="row-form" novalidate>
+          <label for="order-id">Order id (the UUID)</label>
+          <div class="row">
+            <input id="order-id" name="id" type="text" spellcheck="false" autocomplete="off" required>
+            <button type="submit" class="btn btn--primary">Read</button>
+          </div>
+          <p class="hint">
+            <code>GET /api/v1/move-orders/{id}</code> ·
+            <button type="button" class="link" id="use-demo">use the dev demo order MO-2026-0001</button>
+            (back to <code>IN_PROGRESS</code> on every start)
+          </p>
+        </form>
+
+        <details class="register" id="register-details">
+          <summary>Register a new move order</summary>
+          <form id="create-form" novalidate>
+            <label for="business-key">Business key</label>
+            <input id="business-key" name="businessKey" type="text" spellcheck="false" autocomplete="off">
+            <label for="title">Title</label>
+            <input id="title" name="title" type="text" maxlength="200" value="2-room flat: Abay 10 -> Dostyk 5">
+            <button type="submit" class="btn btn--primary">Register</button>
+            <p class="hint"><code>POST /api/v1/move-orders</code> · a new order starts in <code>REQUESTED</code></p>
+          </form>
+        </details>
+
+        <div class="outcome" id="order-outcome" aria-live="polite" hidden></div>
+      </section>
+
+      <!-- the locked action -->
+      <section class="card card--locked" aria-labelledby="complete-title">
+        <h2 id="complete-title">Complete the move <span class="chip chip--senior">MANAGER only</span></h2>
+        <p>
+          Closes the order and bills the customer: <code>IN_PROGRESS → COMPLETED</code>.
+          A dispatcher gets <strong>403</strong> and the order stays as it is.
+          Who completed it is the token's user, never a name from the request.
+        </p>
+        <div class="row">
+          <code class="target" id="complete-target">no order selected</code>
+          <button type="button" class="btn btn--danger" id="complete-button">Complete</button>
+        </div>
+        <p class="hint"><code>POST /api/v1/move-orders/{id}/complete</code> · uses the order id above</p>
+        <div class="outcome" id="complete-outcome" aria-live="polite" hidden></div>
+      </section>
+
+      <section class="card" aria-labelledby="log-title">
+        <h2 id="log-title">Requests from this page</h2>
+        <p class="hint">Every call sends <code>X-Correlation-Id</code>. The token is never shown, only whether one was sent.</p>
+        <ol class="log" id="request-log"></ol>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="wrap footer">
+  Served by the Spring Boot app itself from <code>src/main/resources/static/</code>.
+  API contract: <a href="/swagger-ui.html">/swagger-ui.html</a> · health: <a href="/actuator/health">/actuator/health</a>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -8,11 +8,27 @@ spring:
     password: css
   sql:
     init:
-      # runs our hand-written db/schema.sql on start (CREATE TABLE IF NOT EXISTS)
+      # runs our hand-written db/schema.sql on start (CREATE TABLE IF NOT EXISTS),
+      # then db/dev-data.sql: one IN_PROGRESS demo order for the auth page (dev only)
       mode: always
       schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/dev-data.sql
 
 app:
   downstream:
     base-url: http://localhost:9090
     timeout: 2s
+  jwt:
+    # HS256 signing secret: a classroom value, 32+ characters. Not a production secret:
+    # application-prod.yaml reads CSS_JWT_SECRET, and no secret is written in src/main/java.
+    secret: dev-only-move-orders-jwt-secret-change-me-0123456789
+  dev:
+    # The two classroom users. Only the dev profile has them; prod ships no users.
+    # UsersConfig stores each password as a BCrypt hash ({bcrypt}$2a$10$...), never as this text.
+    users:
+      - username: aliya
+        password: dispatcher-dev
+        role: DISPATCHER
+      - username: nurlan
+        password: manager-dev
+        role: MANAGER
